@@ -176,6 +176,25 @@ UNI_EXPORT_METHOD(@selector(queryHistoryStress:callback:))
     [[CRPRingBridge shared] queryHistoryStress:^(NSDictionary *r) { if (callback) callback(r, NO); }];
 }
 
+#pragma mark - 定时测量（自动测量）历史
+
+UNI_EXPORT_METHOD(@selector(queryHistoryTimingHeartRate:callback:))
+UNI_EXPORT_METHOD(@selector(queryHistoryTimingBloodOxygen:callback:))
+UNI_EXPORT_METHOD(@selector(queryHistoryTimingHrv:callback:))
+
+- (void)queryHistoryTimingHeartRate:(NSDictionary *)options callback:(UniModuleKeepAliveCallback)callback {
+    [[CRPRingBridge shared] queryHistoryTimingHeartRateDaysAgo:CRPInt(options, @"daysAgo", 0)
+                                                        reply:^(NSDictionary *r) { if (callback) callback(r, NO); }];
+}
+- (void)queryHistoryTimingBloodOxygen:(NSDictionary *)options callback:(UniModuleKeepAliveCallback)callback {
+    [[CRPRingBridge shared] queryHistoryTimingBloodOxygenDaysAgo:CRPInt(options, @"daysAgo", 0)
+                                                          reply:^(NSDictionary *r) { if (callback) callback(r, NO); }];
+}
+- (void)queryHistoryTimingHrv:(NSDictionary *)options callback:(UniModuleKeepAliveCallback)callback {
+    [[CRPRingBridge shared] queryHistoryTimingHrvDaysAgo:CRPInt(options, @"daysAgo", 0)
+                                                  reply:^(NSDictionary *r) { if (callback) callback(r, NO); }];
+}
+
 #pragma mark - 自动测量（timing）
 
 UNI_EXPORT_METHOD(@selector(enableTimingHeartRate:callback:))
