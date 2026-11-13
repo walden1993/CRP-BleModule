@@ -1,0 +1,81 @@
+# fastlane Fastfile —— 一键创建 iOS 证书/描述文件 + 编译插件静态库
+#
+# 用法（在 Mac / 云 Mac 上，位于 ios-src 目录）：
+#   brew install fastlane
+#   fastlane certs           # 建 App ID + 分发证书 + App Store 描述文件，导出 .p12
+#   fastlane build_plugin    # 编译 libCRPBleModule.a
+#   fastlane all             # 两步一起做
+#
+# 产物落在 ios-src/fastlane/output/，可直接拿去 HBuilderX 云打包。
+#
+# 说明：
+#  · 首次运行会交互式要 Apple ID 密码 + 2FA 验证码（你自己的手机收，脚本不保存密码）；
+#  · 证书会存进本机钥匙串，p12 导出后建议放进内部密钥库，**不要提交进 Git**。
+
+default_platform(:ios)
+
+# 产物目录
+OUT_DIR = File.join(Dir.pwd, "fastlane", "output")
+
+platform :ios do
+  desc "创建 App ID（已存在则跳过）"
+  lane :appid do
+    produce(
+      app_identifier: "com.huarong.yuanqibao",
+      app_name: "MyraRing",
+      team_id: "ZVP6N2DNQ4",
+      skip_itc: true,          # 只建开发者门户里的 App ID，不建 App Store Connect 记录
+      enable_services: {}      # 蓝牙不需要 capability
+    )
+  end
+
+  desc "创建 Apple Distribution 证书并导出 .p12"
+  lane :cert_p12 do
+    sh("mkdir", "-p", OUT_DIR)
+    cert(
+      team_id: "ZVP6N2DNQ4",
+      username: ENV["FASTLANE_USER"],
+      output_path: OUT_DIR,
+      keychain_path: ENV["KEYCHAIN_PATH"],
+      development: false      # false = 分发证书（App Store 上架用）
+    )
+    # cert 会把 .p12 和密码写到 output_path，密码文件在 output 目录里
+    UI.success("分发证书已导出到 #{OUT_DIR}")
+  end
+
+  desc "创建 App Store 描述文件"
+  lane :profile do
+    sh("mkdir", "-p", OUT_DIR)
+    sigh(
+      app_identifier: "com.huarong.yuanqibao",
+      team_id: "ZVP6N2DNQ4",
+      username: ENV["FASTLANE_USER"],
+      output_path: OUT_DIR,
+      provisioning_name: "MyraRing AppStore",
+      adhoc: false,           # false = App Store 类型
+      skip_certificate_verification: false
+    )
+    UI.success("描述文件已导出到 #{OUT_DIR}")
+  end
+
+  desc "一键：App ID + 证书 + 描述文件"
+  lane :certs do
+    appid
+    cert_p12
+    profile
+    sh("ls", "-la", OUT_DIR)
+    UI.success("全部完成，把 #{OUT_DIR} 里的 .p12 / .mobileprovision 填进 HBuilderX 云打包")
+  end
+
+  desc "编译 CRP-BleModule 静态库（产物到 ../ios/libCRPBleModule.a）"
+  lane :build_plugin do
+    sh("cd ..") # 保持 cwd 在 ios-src
+    sh("bash", "./build.sh")
+  end
+
+  desc "两步一起"
+  lane :all do
+    certs
+    build_plugin
+  end
+end
