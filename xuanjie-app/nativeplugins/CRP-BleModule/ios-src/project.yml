@@ -46,7 +46,7 @@ targets:
         embed: false
     settings:
       base:
-        PRODUCT_NAME: CRP-BleModule
+        PRODUCT_NAME: CRPBleModule   # 产物必须是 libCRPBleModule.a（package.json 的 ios.libs 声明）
         CODE_SIGNING_ALLOWED: NO
         SKIP_INSTALL: YES
         # DCloud iOS 离线 SDK 的 inc 目录（DCUni/DCUniModule.h 等）
