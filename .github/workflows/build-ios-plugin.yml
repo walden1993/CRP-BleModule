@@ -1,0 +1,76 @@
+# GitHub Actions：在云端 macOS 上编译 iOS 原生插件静态库
+#
+# 为什么需要它：
+#   本机是 Windows（没有 Xcode），手上那台 Mac mini 2014 最高只能装 Xcode 14.3.1（iOS 16.4 SDK），
+#   而厂商 CRPSmartRing.framework 是用 Xcode 26.3 / iOS 26.2 SDK 编的 —— 老 Xcode 链接它大概率失败。
+#   GitHub 提供的 macOS runner 自带较新的 Xcode，可以免费把 libCRPBleModule.a 编出来。
+#
+# 用法：
+#   1) 在 GitHub 建一个仓库（建议 private），把 xuanjie-app/nativeplugins/CRP-BleModule/ 这个目录推上去
+#      ⚠️ 千万不要把 .p12 / .key / p12_password.txt 推上去（本仓库的 .gitignore 已忽略它们）
+#   2) 把本文件放到仓库的 .github/workflows/build-ios-plugin.yml
+#   3) push 后到 Actions 页面手动 Run workflow，或直接等它自动跑
+#   4) 跑完在 Actions 的 Artifacts 里下载 libCRPBleModule-arm64.zip
+#   5) 解压得到 libCRPBleModule.a，放回本地 xuanjie-app/nativeplugins/CRP-BleModule/ios/
+#
+# 说明：
+#   - 静态库不需要签名（CODE_SIGNING_ALLOWED=NO），所以不需要 Apple 证书，纯编译；
+#   - CRPSmartRing.framework 是 arm64 真机 slice，只编 arm64，不需要模拟器 slice；
+#   - 不需要把整个 uni-app 工程推上去，插件目录自包含（framework + ios-src 源码）。
+
+name: build-ios-plugin
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'xuanjie-app/nativeplugins/CRP-BleModule/**'
+      - '.github/workflows/build-ios-plugin.yml'
+
+jobs:
+  build:
+    # 选最新的 macOS runner（自带较新的 Xcode；如某天 macos-26 不可用，改回 macos-15）
+    runs-on: macos-15
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Show toolchain
+        run: |
+          sw_vers
+          xcodebuild -version
+          xcodebuild -showsdks | tail -20
+
+      - name: Check framework present
+        run: |
+          FW="xuanjie-app/nativeplugins/CRP-BleModule/ios/CRPSmartRing.framework"
+          test -d "$FW" || { echo "✗ 缺少 $FW（framework 必须一起推上来）"; exit 1; }
+          ls -la "$FW"
+          /usr/libexec/PlistBuddy -c "Print :DTSDKName" "$FW/Info.plist" || true
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Build static library
+        working-directory: xuanjie-app/nativeplugins/CRP-BleModule/ios-src
+        run: |
+          chmod +x ./build.sh
+          ./build.sh
+
+      - name: Verify artifact
+        run: |
+          A="xuanjie-app/nativeplugins/CRP-BleModule/ios/libCRPBleModule.a"
+          test -f "$A" || { echo "✗ 没有产出 $A"; exit 1; }
+          ls -lh "$A"
+          lipo -info "$A" || true
+          # 确认类符号在库里面
+          nm -gU "$A" 2>/dev/null | grep -i CRPBleModule | head -5 || echo "(符号表检查跳过)"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: libCRPBleModule-arm64
+          path: xuanjie-app/nativeplugins/CRP-BleModule/ios/libCRPBleModule.a
+          if-no-files-found: error
