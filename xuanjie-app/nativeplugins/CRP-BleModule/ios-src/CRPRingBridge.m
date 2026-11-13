@@ -93,13 +93,18 @@ static NSString * const kErrTimeout = @"设备未回调（超时）";
                 if ([item[@"mac"] isEqualToString:mac]) { dup = YES; break; }
             }
             if (dup) continue;
-            [self->_scanList addObject:@{@"mac": mac, @"name": (d.localName ?: @""), @"rssi": @0}];
+            [self->_scanList addObject:@{@"mac": mac, @"name": (d.localName ?: @""), @"rssi": @(d.RSSI)}];
         }
         // 把增量推给 JS（与 Android 的 onScanning 事件对齐）
         [self emitEvent:self->_scanCb name:@"scanning" data:@{@"count": @(self->_scanList.count), @"devices": [self->_scanList copy]}];
-    } completionHandler:^{
+    } completionHandler:^(NSArray<CRPDiscovery *> * _Nullable tail, enum CRPError err) {
+        // SDK 的 completionHandler 有两个参数：(NSArray<CRPDiscovery*>*, CRPError)
         self->_scanning = NO;
-        [self emitEvent:self->_scanCb name:@"scanComplete" data:@{@"count": @(self->_scanList.count), @"devices": [self->_scanList copy]}];
+        [self emitEvent:self->_scanCb name:@"scanComplete" data:@{
+            @"count": @(self->_scanList.count),
+            @"devices": [self->_scanList copy],
+            @"error": @((NSInteger)err)
+        }];
     }];
 }
 
@@ -340,7 +345,7 @@ static NSString * const kErrTimeout = @"设备未回调（超时）";
 - (void)didState:(enum CRPState)state {
     // iOS CRPState: 需按头文件的枚举取值判断"已连接"
     // TODO-MAC: 用 CRPState 枚举的真实取值替换 2
-    BOOL nowConnected = ((NSInteger)state == 2);
+    BOOL nowConnected = ((NSInteger)state == (NSInteger)CRPStateConnected);
     if (nowConnected == _connectedFlag) return;
     _connectedFlag = nowConnected;
     [self emitEvent:_connCb name:@"connectionState" data:@{@"state": nowConnected ? @2 : @0}];
