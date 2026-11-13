@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  开发商3（MYRingSDK / com.crrepa.ble）原生插件所需的清单声明。
+
+  来源：厂商样例 `RingSample/sample/src/main/AndroidManifest.xml`
+  （DfuService / SifliDfuService 是固件升级必需；权限按样例抄，并与我们基座现有权限去重）。
+
+  ⚠️ 首次编译前请与 `xuanjie-native-app/android/HBuilder-Integrate-AS/simpleDemo/src/main/AndroidManifest.xml`
+  做一次合并检查：本文件里的权限若基座已有，不要重复声明。
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.huarong.crpble">
+
+    <!-- 固件升级（DFU）需要的服务，来自厂商样例 -->
+    <application>
+        <service
+            android:name="com.realsil.sdk.dfu.DfuService"
+            android:exported="false" />
+        <service
+            android:name="com.example.dfulibrary.SifliDfuService"
+            android:exported="false" />
+    </application>
+
+</manifest>
