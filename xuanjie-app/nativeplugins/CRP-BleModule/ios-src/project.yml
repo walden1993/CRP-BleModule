@@ -1,13 +1,19 @@
-# XcodeGen 工程描述：用于在 Mac / 云 Mac 上把 CRP-BleModule 编成静态库
+# XcodeGen 工程描述：在 Mac / 云 Mac / GitHub Actions 上把 CRP-BleModule 编成静态库
 #
-# 用法（Mac 上）：
-#   brew install xcodegen            # 只需一次
+# 用法：
+#   brew install xcodegen
 #   cd xuanjie-app/nativeplugins/CRP-BleModule/ios-src
-#   xcodegen generate
-#   ./build.sh                       # 产出 ../ios/libCRPBleModule.a
+#   xcodegen generate && ./build.sh        # 产出 ../ios/libCRPBleModule.a
 #
-# 为什么用 XcodeGen 而不是提交 .xcodeproj：.xcodeproj 是二进制-ish 的 plist，
-# 在 Windows 上生成/编辑容易出错；用 yml 描述后每次在 Mac 上重新生成最省事。
+# 关键点：本插件继承 DCUniModule，编译需要 DCloud iOS 离线 SDK 的 inc/ 头文件。
+# 该目录不入库（版权 + 体积），需要按 ios-src/README.md 的说明放一份到这个位置：
+#
+#   xuanjie-app/nativeplugins/CRP-BleModule/third_party/uni-ios-sdk/inc/
+#       DCUni/DCUniModule.h
+#       DCUni/DCUniDefine.h
+#       ...
+#
+# 缺失时编译会报：'DCUni/DCUniModule.h' file not found
 name: CRP-BleModule
 options:
   bundleIdPrefix: com.huarong
@@ -17,14 +23,11 @@ options:
 
 settings:
   base:
-    # uni-app 官方要求：插件静态库必须关掉 bitcode，并指定 arm64
+    # uni-app 官方要求：插件静态库关闭 bitcode，只编 arm64
     ENABLE_BITCODE: NO
     ONLY_ACTIVE_ARCH: NO
     ARCHS: arm64
     BUILD_LIBRARY_FOR_DISTRIBUTION: YES
-    # TODO-MAC: 按你本机 uni-app iOS 离线 SDK（或 DCloud 提供的 DCUniBase）实际路径改
-    HEADER_SEARCH_PATHS:
-      - "$(SRCROOT)/../../../ios-src"
     OTHER_LDFLAGS:
       - "-ObjC"
 
@@ -38,17 +41,20 @@ targets:
           - "*.h"
           - "*.m"
     dependencies:
-      # 厂商 framework（已随插件放在 ../ios/CRPSmartRing.framework）
+      # 厂商 framework（随插件放在 ../ios/CRPSmartRing.framework）
       - framework: ./../ios/CRPSmartRing.framework
         embed: false
     settings:
       base:
         PRODUCT_NAME: CRP-BleModule
-        # 静态库不需要签名
         CODE_SIGNING_ALLOWED: NO
         SKIP_INSTALL: YES
-        # uni-app iOS 离线 SDK 的 DCUniBase 头文件路径（云打包时不需要，本地编译需要）
-        # TODO-MAC: 若只做云打包，可把下面这行删掉，改为在 Xcode 里手动加 DCUniBase 头
+        # DCloud iOS 离线 SDK 的 inc 目录（DCUni/DCUniModule.h 等）
         HEADER_SEARCH_PATHS:
-          - "$(SRCROOT)/../../../ios-src"
-          - "$(SRCROOT)/../../../../DCUniBase"
+          - "$(SRCROOT)/../third_party/uni-ios-sdk/inc"
+          - "$(SRCROOT)/../third_party/uni-ios-sdk/inc/DCUni"
+          - "$(SRCROOT)/../third_party/uni-ios-sdk/inc/WeexSDK"
+          - "$(SRCROOT)"
+        # DCloud 的头文件不是 modular 的，关闭模块校验，否则会报
+        # "Include of non-modular header inside framework module"
+        CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES: YES
