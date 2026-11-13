@@ -1,0 +1,13 @@
+# fastlane Appfile —— 账号与 Bundle ID 配置
+#
+# 账号主体：Shenzhen Ningben Digital Technology Co., Ltd.（Organization）
+# Team ID ：ZVP6N2DNQ4            ← 2026-11-13 从开发者后台 Membership 页确认
+# Bundle  ：com.huarong.yuanqibao  ← 必须与 manifest.json / Xcode 工程一致
+#
+# 说明：这里**不写 Apple ID 密码**。首次运行 fastlane 会交互式要密码 + 2FA 验证码，
+#       密码只存在你自己机器的 keychain / 环境变量里，不进仓库。
+
+app_identifier("com.huarong.yuanqibao")
+team_id("ZVP6N2DNQ4")
+
+# 你也可以在运行前 export FASTLANE_USER / FASTLANE_TEAM_ID 覆盖这里的值
