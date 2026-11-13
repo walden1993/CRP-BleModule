@@ -2,34 +2,33 @@
 #
 # 为什么需要它：
 #   本机是 Windows（没有 Xcode），手上那台 Mac mini 2014 最高只能装 Xcode 14.3.1（iOS 16.4 SDK），
-#   而厂商 CRPSmartRing.framework 是用 Xcode 26.3 / iOS 26.2 SDK 编的 —— 老 Xcode 链接它大概率失败。
-#   GitHub 提供的 macOS runner 自带较新的 Xcode，可以免费把 libCRPBleModule.a 编出来。
+#   而厂商 CRPSmartRing.framework 是用 Xcode 26.3 / iOS 26.2 SDK 编的。GitHub 的 macOS runner
+#   自带较新的 Xcode，可以免费把 libCRPBleModule.a 编出来。
+#
+# 重要前置：本插件继承 DCUniModule，编译需要 DCloud iOS 离线 SDK 的 inc/ 头文件。
+#   把 SDK 里的 inc 目录放到仓库的这个位置（不入 git 也可以，但要一起 push）：
+#     xuanjie-app/nativeplugins/CRP-BleModule/third_party/uni-ios-sdk/inc/
+#   缺了会在 "Check DCloud headers" 这步直接报错并提示。
 #
 # 用法：
-#   1) 在 GitHub 建一个仓库（建议 private），把 xuanjie-app/nativeplugins/CRP-BleModule/ 这个目录推上去
-#      ⚠️ 千万不要把 .p12 / .key / p12_password.txt 推上去（本仓库的 .gitignore 已忽略它们）
-#   2) 把本文件放到仓库的 .github/workflows/build-ios-plugin.yml
-#   3) push 后到 Actions 页面手动 Run workflow，或直接等它自动跑
-#   4) 跑完在 Actions 的 Artifacts 里下载 libCRPBleModule-arm64.zip
-#   5) 解压得到 libCRPBleModule.a，放回本地 xuanjie-app/nativeplugins/CRP-BleModule/ios/
-#
-# 说明：
-#   - 静态库不需要签名（CODE_SIGNING_ALLOWED=NO），所以不需要 Apple 证书，纯编译；
-#   - CRPSmartRing.framework 是 arm64 真机 slice，只编 arm64，不需要模拟器 slice；
-#   - 不需要把整个 uni-app 工程推上去，插件目录自包含（framework + ios-src 源码）。
+#   1) push 代码（或网页上传）
+#   2) Actions → build-ios-plugin → Run workflow
+#   3) 成功后下载 artifact: libCRPBleModule-arm64
+#   4) 解压出的 libCRPBleModule.a 放回 xuanjie-app/nativeplugins/CRP-BleModule/ios/
 
 name: build-ios-plugin
 
 on:
+  # 只手动触发：按文件逐个上传时，每次提交都会触发一次，会刷出几十个运行
   workflow_dispatch:
-  push:
-    paths:
-      - 'xuanjie-app/nativeplugins/CRP-BleModule/**'
-      - '.github/workflows/build-ios-plugin.yml'
+
+concurrency:
+  group: build-ios-plugin
+  cancel-in-progress: true
 
 jobs:
   build:
-    # 选最新的 macOS runner（自带较新的 Xcode；如某天 macos-26 不可用，改回 macos-15）
+    # macos-15 自带 Xcode 16.x；如仓库可用 macos-26 可改成它（厂商 framework 是 Xcode 26.3 编的）
     runs-on: macos-15
     timeout-minutes: 30
 
@@ -41,14 +40,25 @@ jobs:
         run: |
           sw_vers
           xcodebuild -version
-          xcodebuild -showsdks | tail -20
+          xcodebuild -showsdks | tail -12
 
-      - name: Check framework present
+      - name: Check vendor framework
         run: |
           FW="xuanjie-app/nativeplugins/CRP-BleModule/ios/CRPSmartRing.framework"
-          test -d "$FW" || { echo "✗ 缺少 $FW（framework 必须一起推上来）"; exit 1; }
-          ls -la "$FW"
-          /usr/libexec/PlistBuddy -c "Print :DTSDKName" "$FW/Info.plist" || true
+          test -d "$FW" || { echo "::error::缺少 $FW"; exit 1; }
+          echo "framework DTSDKName:"; /usr/libexec/PlistBuddy -c "Print :DTSDKName" "$FW/Info.plist" || true
+
+      - name: Check DCloud headers
+        run: |
+          INC="xuanjie-app/nativeplugins/CRP-BleModule/third_party/uni-ios-sdk/inc"
+          if [ ! -f "$INC/DCUni/DCUniModule.h" ]; then
+            echo "::error::缺少 DCloud 头文件 $INC/DCUni/DCUniModule.h"
+            echo "解决：从 DCloud「iOS 离线 SDK」包里取出 SDK/inc 目录，放到"
+            echo "      xuanjie-app/nativeplugins/CRP-BleModule/third_party/uni-ios-sdk/inc/"
+            echo "      下载页：https://nativesupport.dcloud.net.cn/AppDocs/download/ios"
+            exit 1
+          fi
+          echo "已找到 DCUni 头文件："; ls "$INC/DCUni" | head -10
 
       - name: Install XcodeGen
         run: brew install xcodegen
@@ -62,11 +72,10 @@ jobs:
       - name: Verify artifact
         run: |
           A="xuanjie-app/nativeplugins/CRP-BleModule/ios/libCRPBleModule.a"
-          test -f "$A" || { echo "✗ 没有产出 $A"; exit 1; }
+          test -f "$A" || { echo "::error::没有产出 $A"; exit 1; }
           ls -lh "$A"
           lipo -info "$A" || true
-          # 确认类符号在库里面
-          nm -gU "$A" 2>/dev/null | grep -i CRPBleModule | head -5 || echo "(符号表检查跳过)"
+          nm -gU "$A" 2>/dev/null | grep -i "CRPBleModule" | head -5 || echo "(符号检查跳过)"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
