@@ -305,6 +305,55 @@ static NSString * const kErrTimeout = @"设备未回调（超时）";
     }];
 }
 
+// ============================ 定时测量（自动测量）历史 ============================
+
+- (void)queryHistoryTimingHeartRateDaysAgo:(NSInteger)daysAgo reply:(CRPBridgeReply)reply {
+    id sdk = [self sdkInstance];
+    if (!sdk) { reply([self fail:kErrNoSdk]); return; }
+    // getTimingHeartRate:(NSInteger)day :(handler) — 回调式，直接拿记录
+    [sdk getTimingHeartRate:daysAgo :^(CRPTimingHRRecordModel *m, enum CRPError err) {
+        if (err != 0 || !m) { reply([self fail:@"查询定时心率历史失败"]); return; }
+        NSMutableArray *arr = [NSMutableArray array];
+        for (NSNumber *n in m.hearts) {
+            if (n && n.integerValue > 0) [arr addObject:n];
+        }
+        NSLog(@"[CRP][auto] 定时心率 %lu 点，间隔 %ld", (unsigned long)arr.count, (long)m.timeInterval);
+        reply([self ok:@{@"data": @{
+            @"day": @(m.day),
+            @"interval": @(m.timeInterval),
+            @"list": arr
+        }}]);
+    }];
+}
+
+- (void)queryHistoryTimingBloodOxygenDaysAgo:(NSInteger)daysAgo reply:(CRPBridgeReply)reply {
+    id sdk = [self sdkInstance];
+    if (!sdk) { reply([self fail:kErrNoSdk]); return; }
+    [sdk getTimingO2:daysAgo :^(CRPTimingO2RecordModel *m, enum CRPError err) {
+        if (err != 0 || !m) { reply([self fail:@"查询定时血氧历史失败"]); return; }
+        NSMutableArray *arr = [NSMutableArray array];
+        for (NSNumber *n in m.o2s) {
+            if (n && n.integerValue > 0) [arr addObject:n];
+        }
+        NSLog(@"[CRP][auto] 定时血氧 %lu 点", (unsigned long)arr.count);
+        reply([self ok:@{@"data": @{@"day": @(m.day), @"list": arr}}]);
+    }];
+}
+
+- (void)queryHistoryTimingHrvDaysAgo:(NSInteger)daysAgo reply:(CRPBridgeReply)reply {
+    id sdk = [self sdkInstance];
+    if (!sdk) { reply([self fail:kErrNoSdk]); return; }
+    [sdk getTimingHRV:daysAgo :^(CRPTimingHRVRecordModel *m, enum CRPError err) {
+        if (err != 0 || !m) { reply([self fail:@"查询定时 HRV 历史失败"]); return; }
+        NSMutableArray *arr = [NSMutableArray array];
+        for (NSNumber *n in m.hrvs) {
+            if (n && n.integerValue > 0) [arr addObject:n];
+        }
+        NSLog(@"[CRP][auto] 定时 HRV %lu 点", (unsigned long)arr.count);
+        reply([self ok:@{@"data": @{@"day": @(m.day), @"list": arr}}]);
+    }];
+}
+
 // ============================ 实时测量 ============================
 
 - (void)startMeasureType:(NSString *)type onEvent:(CRPBridgeEvent)onEvent {
