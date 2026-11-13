@@ -89,6 +89,13 @@ typedef void (^CRPBridgeEvent)(NSDictionary * _Nonnull event);
 - (void)queryHistoryHrv:(CRPBridgeReply)reply;
 - (void)queryHistoryStress:(CRPBridgeReply)reply;
 
+// ---------------- 定时测量（自动测量）历史 ----------------
+// 2026-11-13 补：自动测量的结果必须回读，否则「戴了一小时也没有数据」。
+// iOS 侧是回调式查询，比 Android 简单：getTimingHeartRate:: / getTimingO2:: / getTimingHRV::
+- (void)queryHistoryTimingHeartRateDaysAgo:(NSInteger)daysAgo reply:(CRPBridgeReply)reply;
+- (void)queryHistoryTimingBloodOxygenDaysAgo:(NSInteger)daysAgo reply:(CRPBridgeReply)reply;
+- (void)queryHistoryTimingHrvDaysAgo:(NSInteger)daysAgo reply:(CRPBridgeReply)reply;
+
 // ---------------- 实时测量 ----------------
 - (void)startMeasureType:(NSString *)type onEvent:(CRPBridgeEvent)onEvent;
 - (void)stopMeasureType:(NSString *)type reply:(CRPBridgeReply)reply;
