@@ -53,7 +53,7 @@ targets:
         HEADER_SEARCH_PATHS:
           - "$(SRCROOT)/../third_party/uni-ios-sdk/inc"
           - "$(SRCROOT)/../third_party/uni-ios-sdk/inc/DCUni"
-          - "$(SRCROOT)/../third_party/uni-ios-sdk/inc/WeexSDK"
+          - "$(SRCROOT)/../third_party/uni-ios-sdk/inc/weexHeader"
           - "$(SRCROOT)"
         # DCloud 的头文件不是 modular 的，关闭模块校验，否则会报
         # "Include of non-modular header inside framework module"
