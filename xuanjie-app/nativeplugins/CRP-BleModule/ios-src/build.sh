@@ -40,12 +40,19 @@ xcodebuild \
   CONFIGURATION_BUILD_DIR="$PWD/build" \
   clean build
 
-if [ ! -f build/libCRPBleModule.a ]; then
-  echo "✗ 没生成 libCRPBleModule.a，看上面的编译错误（常见：DCUniBase 头路径、SDK 类名大小写）"
+# 产物名可能是 libCRPBleModule.a 也可能是 libCRP-BleModule.a（取 PRODUCT_NAME 决定），两种都兼容
+SRC_A=""
+for cand in build/libCRPBleModule.a build/libCRP-BleModule.a; do
+  if [ -f "$cand" ]; then SRC_A="$cand"; break; fi
+done
+if [ -z "$SRC_A" ]; then
+  echo "✗ 没找到静态库产物（build/ 下的 .a 文件：）"
+  ls -la build/*.a 2>/dev/null || echo "  (没有任何 .a)"
   exit 1
 fi
+echo "✓ 找到产物：$SRC_A"
 
-cp -f build/libCRPBleModule.a "$OUT/libCRPBleModule.a"
+cp -f "$SRC_A" "$OUT/libCRPBleModule.a"
 cp -f CRPBleModule.h "$OUT/include/CRPBleModule.h"
 echo "✓ 已产出：$OUT/libCRPBleModule.a"
 echo "  下一步：在 HBuilderX 用「App云打包」时勾选本地原生插件 CRP-BleModule，或走 iOS 离线 SDK。"
