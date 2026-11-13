@@ -102,3 +102,32 @@ cd xuanjie-app/nativeplugins/CRP-BleModule/ios-src
 | `libCRPBleModule.a` | ❌ **未产出（阻塞云打包 iOS）** |
 | Apple 证书 + 描述文件 | ✅ 已生成并交叉验证 |
 | `manifest.json` 的 iOS 段（appid/bundleId） | ❌ 未配置 |
+
+---
+
+## ⚠️ 编译必需：DCloud iOS 离线 SDK 的 inc 头文件
+
+本插件继承 `DCUniModule`，编译需要官方头文件（CI 第一次跑就卡在这里）：
+
+```
+CRPBleModule.h:16:9: error: 'DCUni/DCUniModule.h' file not found
+```
+
+### 怎么补
+
+1. 下载 **iOS 离线 SDK**（需 DCloud 账号，和彩云 / 百度网盘）
+   👉 https://nativesupport.dcloud.net.cn/AppDocs/download/ios
+2. 解压后找到 `SDK/inc/` 目录（里面有 `DCUni/DCUniModule.h`、`DCUni/DCUniDefine.h`、`WeexSDK/` 等）
+3. 放到仓库这个位置（**目录名必须一致**）：
+
+```
+xuanjie-app/nativeplugins/CRP-BleModule/third_party/uni-ios-sdk/inc/
+    DCUni/DCUniModule.h
+    DCUni/DCUniDefine.h
+    ...
+```
+
+4. 重新跑 Actions 的 `build-ios-plugin` 即可。
+
+> 为什么不把 inc 直接提交进本仓库：它是 DCloud 的版权文件，体积也不小。
+> GitHub 上的插件仓库（walden1993/CRP-BleModule）里放一份即可，CI 只读它。
